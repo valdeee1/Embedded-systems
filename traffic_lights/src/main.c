@@ -1,3 +1,11 @@
+/*
+
+Tässä tavoitteena 2 pistettä eli tehty keskeytykset
+
+*/
+
+
+
 #include <zephyr/kernel.h>
 #include <zephyr/sys/printk.h>
 #include <zephyr/device.h>
