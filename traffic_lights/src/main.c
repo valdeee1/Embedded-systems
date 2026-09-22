@@ -1,17 +1,15 @@
 /*
 
-Ohjelma pystyy vastaanottamaan sarjaportista värin ja ajan muodossa
-R,1000 esimerkiksi ja laite polttaa oikeaa valoa määrätyn ajan verran.
-Käytössä on mutex ja condition variablet.
+Ajanotto ja printk-tulostukset löytyy
+
 */
-
-
 
 #include <zephyr/kernel.h>
 #include <zephyr/sys/printk.h>
 #include <zephyr/device.h>
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/uart.h>
+#include <zephyr/timing/timing.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -47,6 +45,9 @@ static bool task_done = false;
 
 static char active_color = 0;
 static int active_duration_ms = 1000;
+uint64_t elapsed_time_us_red = 0;
+uint64_t elapsed_time_us_yellow = 0;
+uint64_t elapsed_time_us_green = 0;
 
 static volatile bool system_paused = false;
 
@@ -55,6 +56,7 @@ void yellow_led_task(void *, void *, void *);
 void green_led_task(void *, void *, void *);
 void uart_rx_task(void *, void *, void *);
 static void dispatcher_task(void *, void *, void *);
+void debug_task(void *, void *, void*);
 void button_0_handler(const struct device *dev, struct gpio_callback *cb, uint32_t pins);
 int init_uart(void);
 int init_led(void);
@@ -65,11 +67,14 @@ K_THREAD_DEFINE(yellow_thread, STACKSIZE, yellow_led_task, NULL, NULL, NULL, PRI
 K_THREAD_DEFINE(green_thread,  STACKSIZE, green_led_task,  NULL, NULL, NULL, PRIORITY, 0, 0);
 K_THREAD_DEFINE(dis_thread,    STACKSIZE, dispatcher_task, NULL, NULL, NULL, PRIORITY, 0, 0);
 K_THREAD_DEFINE(uart_thread,   STACKSIZE, uart_rx_task,    NULL, NULL, NULL, PRIORITY, 0, 0);
+K_THREAD_DEFINE(debug_thread,  STACKSIZE, debug_task,      NULL, NULL, NULL, PRIORITY, 0, 0);
 
 int main(void)
 {
     init_led();
     init_button();
+    timing_init();
+
     if (init_uart() != 0) {
         printk("Error: UART init failed\n");
         return 1;
@@ -202,6 +207,8 @@ static void dispatcher_task(void *unused1, void *unused2, void *unused3)
 void red_led_task(void *p1, void *p2, void *p3)
 {
     printk("Red led thread started\n");
+    timing_t start_time, end_time;
+
     while (true) {
         k_mutex_lock(&led_mutex, K_FOREVER);
         while (active_color != 'R' && active_color != 'r') {
@@ -211,9 +218,23 @@ void red_led_task(void *p1, void *p2, void *p3)
         active_color = 0;
         k_mutex_unlock(&led_mutex);
 
+        /* Käynnistetään ajastin ennen aloitusaikaleimaa */
+        timing_start();
+        start_time = timing_counter_get();
+
         gpio_pin_set_dt(&red, 1);
         k_msleep(burn_time);
         gpio_pin_set_dt(&red, 0);
+
+        /* Otetaan lopetusaikaleima ja pysäytetään ajastin heti */
+        end_time = timing_counter_get();
+        timing_stop();
+
+        uint64_t cycles = timing_cycles_get(&start_time, &end_time);
+        uint64_t freq = timing_freq_get();
+        elapsed_time_us_red = (cycles * 1000000ULL) / freq;
+
+        printk("Red LED ON duration: %llu us\n", elapsed_time_us_red);
 
         k_mutex_lock(&release_mutex, K_FOREVER);
         task_done = true;
@@ -225,6 +246,8 @@ void red_led_task(void *p1, void *p2, void *p3)
 void yellow_led_task(void *p1, void *p2, void *p3)
 {
     printk("Yellow led thread started\n");
+    timing_t start_time, end_time;
+
     while (true) {
         k_mutex_lock(&led_mutex, K_FOREVER);
         while (active_color != 'Y' && active_color != 'y') {
@@ -234,11 +257,25 @@ void yellow_led_task(void *p1, void *p2, void *p3)
         active_color = 0;
         k_mutex_unlock(&led_mutex);
 
+        /* Käynnistetään ajastin ennen aloitusaikaleimaa */
+        timing_start();
+        start_time = timing_counter_get();
+
         gpio_pin_set_dt(&red, 1);
         gpio_pin_set_dt(&green, 1);
         k_msleep(burn_time);
         gpio_pin_set_dt(&red, 0);
         gpio_pin_set_dt(&green, 0);
+
+        /* Otetaan lopetusaikaleima ja pysäytetään ajastin heti */
+        end_time = timing_counter_get();
+        timing_stop();
+
+        uint64_t cycles = timing_cycles_get(&start_time, &end_time);
+        uint64_t freq = timing_freq_get();
+        elapsed_time_us_yellow = (cycles * 1000000ULL) / freq;
+
+        printk("Yellow LED ON duration: %llu us\n", elapsed_time_us_yellow);
 
         k_mutex_lock(&release_mutex, K_FOREVER);
         task_done = true;
@@ -250,6 +287,8 @@ void yellow_led_task(void *p1, void *p2, void *p3)
 void green_led_task(void *p1, void *p2, void *p3)
 {
     printk("Green led thread started\n");
+    timing_t start_time, end_time;
+
     while (true) {
         k_mutex_lock(&led_mutex, K_FOREVER);
         while (active_color != 'G' && active_color != 'g') {
@@ -259,9 +298,26 @@ void green_led_task(void *p1, void *p2, void *p3)
         active_color = 0;
         k_mutex_unlock(&led_mutex);
 
+        /* Käynnistetään ajastin ennen aloitusaikaleimaa */
+        timing_start();
+        start_time = timing_counter_get();
+
         gpio_pin_set_dt(&green, 1);
         k_msleep(burn_time);
         gpio_pin_set_dt(&green, 0);
+
+        /* Otetaan lopetusaikaleima ja pysäytetään ajastin heti */
+        end_time = timing_counter_get();
+        timing_stop();
+
+        uint64_t cycles = timing_cycles_get(&start_time, &end_time);
+        uint64_t freq = timing_freq_get();
+        elapsed_time_us_green = (cycles * 1000000ULL) / freq;
+
+        printk("Green LED ON duration: %llu us\n", elapsed_time_us_green);
+
+        uint64_t total_elapsed_time = elapsed_time_us_red + elapsed_time_us_yellow + elapsed_time_us_green;
+        printk("Total elapsed time: %llu us\n", total_elapsed_time);
 
         k_mutex_lock(&release_mutex, K_FOREVER);
         task_done = true;
@@ -276,4 +332,6 @@ void button_0_handler(const struct device *dev, struct gpio_callback *cb, uint32
     printk("Button pressed! Paused = %d\n", system_paused);
 }
 
-
+void debug_task(void *, void *, void*)
+{
+}
