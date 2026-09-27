@@ -1,6 +1,6 @@
 /*
 
-Ajanotto ja printk-tulostukset löytyy
+Tämä tavoittelee viikko vitoselta 1p tehtävää eli keskeytys on tehty
 
 */
 
@@ -24,8 +24,14 @@ static const struct gpio_dt_spec button_0 = GPIO_DT_SPEC_GET_OR(BUTTON_0, gpios,
 static struct gpio_callback button_0_data;
 static const struct device *const uart_dev = DEVICE_DT_GET(UART_DEVICE_NODE);
 
-#define STACKSIZE 500
+#define STACKSIZE 1024
 #define PRIORITY 5
+
+#define COMMAND_OK           0
+#define TIME_LEN_ERROR      -1
+#define TIME_ARRAY_ERROR    -2
+#define TIME_VALUE_ERROR    -3
+#define TIME_NULL_ERROR     -4
 
 K_FIFO_DEFINE(data_fifo);
 
@@ -51,13 +57,20 @@ uint64_t elapsed_time_us_green = 0;
 
 static volatile bool system_paused = false;
 
+static struct k_timer timer;
+static struct data_t timer_cmd = {
+    .msg = "R,2000"  /* Laitetaan punainen valo 2 sekunniksi päälle kun ajastin laukeaa */
+};
+
 void red_led_task(void *, void *, void *);
 void yellow_led_task(void *, void *, void *);
 void green_led_task(void *, void *, void *);
 void uart_rx_task(void *, void *, void *);
+int time_parse(char *);
 static void dispatcher_task(void *, void *, void *);
 void debug_task(void *, void *, void*);
 void button_0_handler(const struct device *dev, struct gpio_callback *cb, uint32_t pins);
+void timer_handler(struct k_timer *timer_id);
 int init_uart(void);
 int init_led(void);
 int init_button(void);
@@ -74,6 +87,7 @@ int main(void)
     init_led();
     init_button();
     timing_init();
+    k_timer_init(&timer, timer_handler, NULL); // <-- Puuttui!
 
     if (init_uart() != 0) {
         printk("Error: UART init failed\n");
@@ -131,14 +145,21 @@ void uart_rx_task(void *unused1, void *unused2, void *unused3)
             } else {
                 if (uart_msg_cnt > 0) {
                     uart_msg[uart_msg_cnt] = '\0';
-
-                    struct data_t *buf = k_malloc(sizeof(struct data_t));
-                    if (buf == NULL) {
-                        printk("Error: Out of memory\n");
-                    } else {
-                        strncpy(buf->msg, uart_msg, sizeof(buf->msg) - 1);
-                        buf->msg[sizeof(buf->msg) - 1] = '\0';
-                        k_fifo_put(&data_fifo, buf);
+                    if (uart_msg[0] >= '0' && uart_msg[0] <= '9') {
+                        int ret = time_parse(uart_msg);
+                        if (ret > COMMAND_OK) {
+                            k_timer_start(&timer, K_SECONDS(ret), K_NO_WAIT);
+                        }
+                    } else if(uart_msg[0] == 'R' || uart_msg[0] == 'Y' || uart_msg[0] == 'G' ||
+                              uart_msg[0] == 'r' || uart_msg[0] == 'y' || uart_msg[0] == 'g') {
+                        struct data_t *buf = k_malloc(sizeof(struct data_t));
+                        if (buf == NULL) {
+                            printk("Error: Out of memory\n");
+                        } else {
+                            strncpy(buf->msg, uart_msg, sizeof(buf->msg) - 1);
+                            buf->msg[sizeof(buf->msg) - 1] = '\0';
+                            k_fifo_put(&data_fifo, buf);
+                        }
                     }
                     uart_msg_cnt = 0;
                     memset(uart_msg, 0, sizeof(uart_msg));
@@ -148,7 +169,46 @@ void uart_rx_task(void *unused1, void *unused2, void *unused3)
         k_msleep(1);
     }
 }
+int time_parse(char *time) {
 
+    if (time == NULL) {
+        return TIME_NULL_ERROR;
+    }
+
+    if (strlen(time) != 6) {
+        return TIME_LEN_ERROR;
+    }
+
+    for (int i = 0; i < 6; i++) {
+        if (time[i] < '0' || time[i] > '9') {
+            return TIME_ARRAY_ERROR;
+        }
+    }
+	// Parse values from time string
+	// For example: 124033 -> 12hour 40min 33sec
+    int values[3];
+	values[2] = atoi(time+4); // seconds
+	time[4] = 0;
+	values[1] = atoi(time+2); // minutes
+	time[2] = 0;
+	values[0] = atoi(time); // hours
+	// Now you have:
+	// values[0] hour
+	// values[1] minute
+	// values[2] second
+
+	// TODO: Add boundary check time values: below zero or above limit not allowed
+	// limits are 59 for minutes, 23 for hours, etc
+    if (values[0] < 0 || values[0] > 23 ||  
+        values[1] < 0 || values[1] > 59 ||
+        values[2] < 0 || values[2] > 59) {
+        return TIME_VALUE_ERROR;
+    }
+
+	int seconds = values[0] * 3600 + values[1] * 60 + values[2];
+
+	return seconds;
+}
 static void dispatcher_task(void *unused1, void *unused2, void *unused3)
 {
     printk("Dispatcher thread started\n");
@@ -162,8 +222,9 @@ static void dispatcher_task(void *unused1, void *unused2, void *unused3)
         char sequence[21];
         strncpy(sequence, rec_item->msg, sizeof(sequence) - 1);
         sequence[sizeof(sequence) - 1] = '\0';
-        k_free(rec_item);
-
+        if (rec_item != &timer_cmd) {
+            k_free(rec_item);
+        }
         char color = sequence[0];
         int duration = 1000;
         char *comma_ptr = strchr(sequence, ',');
@@ -330,6 +391,12 @@ void button_0_handler(const struct device *dev, struct gpio_callback *cb, uint32
 {
     system_paused = !system_paused;
     printk("Button pressed! Paused = %d\n", system_paused);
+}
+
+void timer_handler(struct k_timer *timer_id) {
+    printk("ISR!\n");
+    k_fifo_put(&data_fifo, &timer_cmd);
+
 }
 
 void debug_task(void *, void *, void*)
