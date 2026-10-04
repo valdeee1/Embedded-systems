@@ -1,6 +1,6 @@
 /*
 
-Tämä tavoittelee viikko vitoselta 1p tehtävää eli keskeytys on tehty
+Viikko 6: Tehty testiautomaatio jossa testaa ensin oikealla syöttellä ja sitten väärällä syöttöllä. Eli 1p.
 
 */
 
@@ -138,7 +138,7 @@ void uart_rx_task(void *unused1, void *unused2, void *unused3)
 
     while (true) {
         while (uart_poll_in(uart_dev, &rx_data) == 0) {
-            if (rx_data != '\r' && rx_data != '\n') {
+            if (rx_data != '\r' && rx_data != '\n' && rx_data != 'X') {
                 if (uart_msg_cnt < sizeof(uart_msg) - 1) {
                     uart_msg[uart_msg_cnt++] = (char)rx_data;
                 }
@@ -147,6 +147,11 @@ void uart_rx_task(void *unused1, void *unused2, void *unused3)
                     uart_msg[uart_msg_cnt] = '\0';
                     if (uart_msg[0] >= '0' && uart_msg[0] <= '9') {
                         int ret = time_parse(uart_msg);
+                        if(strstr(uart_msg, "X") == NULL) {
+                            uart_msg[uart_msg_cnt++] = 'X';
+                            uart_msg[uart_msg_cnt] = '\0';
+                        }
+                        printk("%dX\n", ret);
                         if (ret > COMMAND_OK) {
                             k_timer_start(&timer, K_SECONDS(ret), K_NO_WAIT);
                         }

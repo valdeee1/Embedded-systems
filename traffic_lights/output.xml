@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<robot generator="Robot 7.5 (Python 3.13.1 on win32)" generated="2026-10-04T19:27:02.837947" rpa="false" schemaversion="5">
+<suite id="s1" name="Test Automation" source="C:\Embedded-systems\traffic_lights\test_automation.robot">
+<test id="s1-t1" name="Connect Serial" line="15">
+<kw name="Log To Console" owner="BuiltIn">
+<arg>Connecting to ${board}</arg>
+<doc>Logs the given message to the console.</doc>
+<status status="PASS" start="2026-10-04T19:27:02.920422" elapsed="0.000698"/>
+</kw>
+<kw name="Add Port" owner="SerialLibrary">
+<arg>${com}</arg>
+<arg>baudrate=${baud}</arg>
+<arg>encoding=ascii</arg>
+<doc>Adds new port with specified locator.</doc>
+<status status="PASS" start="2026-10-04T19:27:02.921692" elapsed="0.003107"/>
+</kw>
+<kw name="Port Should Be Open" owner="SerialLibrary">
+<arg>${com}</arg>
+<doc>Fails if specified port is closed.</doc>
+<status status="PASS" start="2026-10-04T19:27:02.925426" elapsed="0.001053"/>
+</kw>
+<kw name="Reset Input Buffer" owner="SerialLibrary">
+<doc>Clears input buffer.</doc>
+<status status="PASS" start="2026-10-04T19:27:02.927483" elapsed="0.000335"/>
+</kw>
+<kw name="Reset Output Buffer" owner="SerialLibrary">
+<doc>Clears outout buffer.</doc>
+<status status="PASS" start="2026-10-04T19:27:02.928200" elapsed="0.000242"/>
+</kw>
+<status status="PASS" start="2026-10-04T19:27:02.918999" elapsed="0.009776"/>
+</test>
+<test id="s1-t2" name="Send The Correct Sequence" line="22">
+<kw name="Write Data" owner="SerialLibrary">
+<arg>${rseq}</arg>
+<arg>encoding=ascii</arg>
+<doc>Writes data into the port.</doc>
+<status status="PASS" start="2026-10-04T19:27:02.929815" elapsed="0.000661"/>
+</kw>
+<kw name="Log To Console" owner="BuiltIn">
+<arg>Send sequence ${rseq}</arg>
+<doc>Logs the given message to the console.</doc>
+<status status="PASS" start="2026-10-04T19:27:02.931024" elapsed="0.000568"/>
+</kw>
+<kw name="Read Until" owner="SerialLibrary">
+<msg time="2026-10-04T19:27:02.932945" level="INFO">${read} = 60X</msg>
+<var>${read}</var>
+<arg>terminator=58</arg>
+<arg>encoding=ascii</arg>
+<doc>Read until a termination sequence is found, size exceeded or timeout.</doc>
+<status status="PASS" start="2026-10-04T19:27:02.931873" elapsed="0.001114"/>
+</kw>
+<kw name="Log To Console" owner="BuiltIn">
+<arg>Received ${read}</arg>
+<doc>Logs the given message to the console.</doc>
+<status status="PASS" start="2026-10-04T19:27:02.933204" elapsed="0.000342"/>
+</kw>
+<kw name="Should Be Equal As Strings" owner="BuiltIn">
+<arg>${read}</arg>
+<arg>${correct}</arg>
+<doc>Fails if objects are unequal after converting them to strings.</doc>
+<status status="PASS" start="2026-10-04T19:27:02.933716" elapsed="0.000322"/>
+</kw>
+<kw name="Log To Console" owner="BuiltIn">
+<arg>Tested ${read} is same as ${correct}</arg>
+<doc>Logs the given message to the console.</doc>
+<status status="PASS" start="2026-10-04T19:27:02.934225" elapsed="0.000315"/>
+</kw>
+<status status="PASS" start="2026-10-04T19:27:02.929297" elapsed="0.005404"/>
+</test>
+<test id="s1-t3" name="Send The Wrong Sequence" line="34">
+<kw name="Sleep" owner="BuiltIn">
+<msg time="2026-10-04T19:27:03.936230" level="INFO">Slept 1 second.</msg>
+<arg>1s</arg>
+<doc>Pauses execution for the given time.</doc>
+<status status="PASS" start="2026-10-04T19:27:02.935293" elapsed="1.001264"/>
+</kw>
+<kw name="Reset Input Buffer" owner="SerialLibrary">
+<doc>Clears input buffer.</doc>
+<status status="PASS" start="2026-10-04T19:27:03.937408" elapsed="0.000592"/>
+</kw>
+<kw name="Reset Output Buffer" owner="SerialLibrary">
+<doc>Clears outout buffer.</doc>
+<status status="PASS" start="2026-10-04T19:27:03.938595" elapsed="0.000420"/>
+</kw>
+<kw name="Write Data" owner="SerialLibrary">
+<arg>${wseq}</arg>
+<arg>encoding=ascii</arg>
+<doc>Writes data into the port.</doc>
+<status status="PASS" start="2026-10-04T19:27:03.939536" elapsed="0.001232"/>
+</kw>
+<kw name="Log To Console" owner="BuiltIn">
+<arg>Send sequence ${wseq}</arg>
+<doc>Logs the given message to the console.</doc>
+<status status="PASS" start="2026-10-04T19:27:03.941940" elapsed="0.001890"/>
+</kw>
+<kw name="Read Until" owner="SerialLibrary">
+<msg time="2026-10-04T19:27:03.946058" level="INFO">${read} = -1X</msg>
+<var>${read}</var>
+<arg>terminator=58</arg>
+<arg>encoding=ascii</arg>
+<doc>Read until a termination sequence is found, size exceeded or timeout.</doc>
+<status status="PASS" start="2026-10-04T19:27:03.944526" elapsed="0.001656"/>
+</kw>
+<kw name="Log To Console" owner="BuiltIn">
+<arg>Received ${read}</arg>
+<doc>Logs the given message to the console.</doc>
+<status status="PASS" start="2026-10-04T19:27:03.946910" elapsed="0.001381"/>
+</kw>
+<kw name="Should Be Equal As Strings" owner="BuiltIn">
+<arg>${read}</arg>
+<arg>${error}</arg>
+<doc>Fails if objects are unequal after converting them to strings.</doc>
+<status status="PASS" start="2026-10-04T19:27:03.949051" elapsed="0.001260"/>
+</kw>
+<kw name="Log To Console" owner="BuiltIn">
+<arg>Tested ${read} is same as ${error}</arg>
+<doc>Logs the given message to the console.</doc>
+<status status="PASS" start="2026-10-04T19:27:03.950999" elapsed="0.001149"/>
+</kw>
+<status status="PASS" start="2026-10-04T19:27:02.934985" elapsed="1.018083"/>
+</test>
+<test id="s1-t4" name="Disconnect Serial" line="49">
+<kw name="Log To Console" owner="BuiltIn">
+<arg>Disconnecting ${board}</arg>
+<doc>Logs the given message to the console.</doc>
+<status status="PASS" start="2026-10-04T19:27:03.955226" elapsed="0.001150"/>
+</kw>
+<kw name="Delete Port" owner="SerialLibrary" type="TEARDOWN">
+<arg>${com}</arg>
+<doc>Deletes specified port.</doc>
+<status status="PASS" start="2026-10-04T19:27:03.957295" elapsed="0.004087"/>
+</kw>
+<status status="PASS" start="2026-10-04T19:27:03.954071" elapsed="0.007988"/>
+</test>
+<status status="PASS" start="2026-10-04T19:27:02.839925" elapsed="1.123951"/>
+</suite>
+<statistics>
+<total>
+<stat pass="4" fail="0" skip="0">All Tests</stat>
+</total>
+<tag>
+</tag>
+<suite>
+<stat name="Test Automation" id="s1" pass="4" fail="0" skip="0">Test Automation</stat>
+</suite>
+</statistics>
+<errors>
+</errors>
+</robot>
