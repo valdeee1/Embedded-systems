@@ -1,5 +1,6 @@
 /*
 
+Viikko 5: Tehty testiautomaatio jossa testaa ensin oikealla syöttellä ja sitten väärällä syöttöllä. Eli 1p.
 Viikko 6: Tehty testiautomaatio jossa testaa ensin oikealla syöttellä ja sitten väärällä syöttöllä. Eli 1p.
 
 */
